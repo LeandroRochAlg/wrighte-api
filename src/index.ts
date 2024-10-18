@@ -1,4 +1,7 @@
 import express, { Request, Response } from 'express';
+const bcrypt = require("bcrypt");
+import db from "./config/database";
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const port = 3000;
@@ -12,4 +15,85 @@ app.get('/', (req: Request, res: Response) => {
 
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
+});
+
+app.post('/register', async (req: Request, res: Response) => {
+  const { username, email, password } = req.body;
+
+  try{
+    const existeUser = await db.oneOrNone(
+      "SELECT * FROM users WHERE email = $email or username = $username", [email, username]
+    );
+  
+    if (existeUser) {
+      // Se o email ou username já existir, retorna uma mensagem de erro apropriada
+      if (existeUser.email === email) {
+        res.status(400).json({ message: 'Email já está em uso' });
+      }
+      if (existeUser.username === username) {
+        res.status(400).json({ message: 'Username já está em uso' });
+      }
+    }
+    
+    const salt = await bcrypt.genSalt(10);
+    const passwordCrypt = await bcrypt.hash(password, salt);
+
+    await db.none(
+      "INSERT INTO users(username, email, password) VALUES($username, $email, $password)",
+      [username, email, passwordCrypt]
+    );
+  
+    res.status(200).json({message:"Usuário cadastrado com sucesso"});
+
+  } catch(error){
+    console.error('Erro ao adicionar usuário:', error);
+    res.status(500).json({ message: 'Erro ao adicionar usuário' });
+  }
+
+
+});
+
+app.post("/login", async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  try{
+    const user = await db.oneOrNone(
+      "SELECT * FROM users WHERE email = $email", [email]
+    );
+
+    if (!user) {
+      res.status(400).json({ message: 'Usuário não encontrado' });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password);
+
+    if (!validPassword) {
+      res.status(400).json({ message: 'Senha inválida' });
+    }
+
+    const token = jwt.sign({ id: user.id }, 'secret', { expiresIn: '1h' });
+
+    res.status(200).json({ token });
+
+  } catch(error){
+    console.error('Erro ao fazer login:', error);
+    res.status(500).json({ message: 'Erro ao fazer login' });
+  }
+});
+
+app.post("/logout", async (req: Request, res: Response) => {
+  res.status(200).json({ message: 'Logout realizado com sucesso' });
+  res.json({token: null});
+});
+
+
+//Verificacao do banco de dados [DEBUG]
+app.get("/users", async (req: Request, res: Response) => {
+  try{
+    const users = await db.manyOrNone("SELECT * FROM users");
+    res.status(200).json(users);
+  } catch(error){
+    console.error('Erro ao buscar usuários:', error);
+    res.status(500).json({ message: 'Erro ao buscar usuários' });
+  }
 });
