@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
-const bcrypt = require("bcrypt");
+import bcrypt from "bcrypt";
 import db from "./config/database";
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 import cors from 'cors';
 
 const app = express();
