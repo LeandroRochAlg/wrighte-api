@@ -2,9 +2,18 @@ import express, { Request, Response } from 'express';
 const bcrypt = require("bcrypt");
 import db from "./config/database";
 const jwt = require('jsonwebtoken');
+import cors from 'cors';
 
 const app = express();
 const port = 3000;
+
+const corsOptions = {
+  origin: 'http://localhost:5173',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+};
+
+app.use(cors(corsOptions));
 
 // Middleware para processar JSON
 app.use(express.json());
@@ -22,7 +31,7 @@ app.post('/register', async (req: Request, res: Response) => {
 
   try{
     const existeUser = await db.oneOrNone(
-      "SELECT * FROM users WHERE email = $email or username = $username", [email, username]
+      "SELECT * FROM users WHERE email = $1 or username = $2", [email, username]
     );
   
     if (existeUser) {
@@ -39,7 +48,7 @@ app.post('/register', async (req: Request, res: Response) => {
     const passwordCrypt = await bcrypt.hash(password, salt);
 
     await db.none(
-      "INSERT INTO users(username, email, password) VALUES($username, $email, $password)",
+      "INSERT INTO users(username, email, password) VALUES($1, $2, $3)",
       [username, email, passwordCrypt]
     );
   
@@ -58,7 +67,7 @@ app.post("/login", async (req: Request, res: Response) => {
 
   try{
     const user = await db.oneOrNone(
-      "SELECT * FROM users WHERE email = $email", [email]
+      "SELECT * FROM users WHERE email = $1", [email]
     );
 
     if (!user) {
