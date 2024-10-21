@@ -6,29 +6,32 @@ import jwt from 'jsonwebtoken';
 class AuthController {
     public async login(req: Request, res: Response) {
         const { email, password } = req.body;
-
-        try{
+    
+        try {
             const user = await db.oneOrNone(
                 "SELECT * FROM users WHERE email = $1", [email]
             );
-
+    
             if (!user) {
-                res.status(400).json({ message: 'Usuário não encontrado' });
+                // Retorna a resposta e interrompe a execução se o usuário não for encontrado
+                return res.status(400).json({ message: 'Usuário não encontrado' });
             }
-
+    
             const validPassword = await bcrypt.compare(password, user.password);
-
+    
             if (!validPassword) {
-                res.status(400).json({ message: 'Senha inválida' });
+                // Retorna a resposta e interrompe a execução se a senha for inválida
+                return res.status(400).json({ message: 'Senha inválida' });
             }
-
+    
             const token = jwt.sign({ id: user.id }, 'secret', { expiresIn: '1h' });
-
-            res.status(200).json({ token });
-
-        } catch(error){
+    
+            // Retorna o token de autenticação
+            return res.status(200).json({ token });
+    
+        } catch (error) {
             console.error('Erro ao fazer login:', error);
-            res.status(500).json({ message: 'Erro ao fazer login' });
+            return res.status(500).json({ message: 'Erro ao fazer login' });
         }
     }
 
