@@ -8,27 +8,22 @@ class AuthController {
         const { email, password } = req.body;
     
         try {
-            const user = await db.oneOrNone(
-                "SELECT * FROM users WHERE email = $1", [email]
-            );
+            const user = await db.oneOrNone("SELECT * FROM users WHERE email = $1", [email]);
     
             if (!user) {
-                // Retorna a resposta e interrompe a execução se o usuário não for encontrado
                 return res.status(400).json({ message: 'Usuário não encontrado' });
             }
     
             const validPassword = await bcrypt.compare(password, user.password);
     
             if (!validPassword) {
-                // Retorna a resposta e interrompe a execução se a senha for inválida
                 return res.status(400).json({ message: 'Senha inválida' });
             }
     
             const token = jwt.sign({ id: user.id }, 'secret', { expiresIn: '1h' });
     
-            // Retorna o token de autenticação
-            return res.status(200).json({ token });
-    
+            // Retorna o token de autenticação e o username
+            return res.status(200).json({ token, username: user.username });
         } catch (error) {
             console.error('Erro ao fazer login:', error);
             return res.status(500).json({ message: 'Erro ao fazer login' });

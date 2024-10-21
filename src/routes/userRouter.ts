@@ -20,4 +20,14 @@ userRouter.post("/register", AuthController.register);
 userRouter.get("/users", UserController.getUsers);
 
 // Save book
-userRouter.post("/book-content", BookContentController.bookContent);
+userRouter.post("/book-content", async (req, res) => {
+    await BookContentController.saveContent(req, res);
+});
+
+userRouter.get("/contents", async (req, res) => {
+    await BookContentController.getUserContents(req, res);
+});
+
+userRouter.get("/content/:id", async (req, res) => {
+    await BookContentController.getContentById(req, res);
+});
