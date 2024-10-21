@@ -20,7 +20,7 @@ class AuthController {
                 return res.status(400).json({ message: 'Senha inválida' });
             }
     
-            const token = jwt.sign({ id: user.id }, 'secret', { expiresIn: '1h' });
+            const token = jwt.sign({ id: user.id }, 'secret', { expiresIn: '30d' });
     
             // Retorna o token de autenticação e o username
             return res.status(200).json({ token, username: user.username });
