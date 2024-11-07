@@ -2,8 +2,7 @@ import { Request, Response } from 'express';
 import db from '../config/database';
 import jwt from 'jsonwebtoken';
 
-
-class bookContentController{
+class TextController {
     public async saveContent(req: Request, res: Response) {
         const { title, content } = req.body;
         const token = req.headers.authorization?.split(' ')[1];
@@ -70,4 +69,4 @@ class bookContentController{
     }
 }
 
-export default new bookContentController();
+export default new TextController();
