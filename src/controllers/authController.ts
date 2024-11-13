@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import bcrypt from "bcrypt";
-import db from '../config/database';
+import pgdb from '../config/postgresql';
 import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 
@@ -11,7 +11,7 @@ class AuthController {
         const { email, password } = req.body;
     
         try {
-            const user = await db.oneOrNone("SELECT * FROM users WHERE email = $1", [email]);
+            const user = await pgdb.oneOrNone("SELECT * FROM users WHERE email = $1", [email]);
     
             if (!user) {
                 return res.status(400).json({ message: 'Usuário não encontrado' });
@@ -42,7 +42,7 @@ class AuthController {
         const { username, email, password } = req.body;
 
         try{
-            const existeUser = await db.oneOrNone(
+            const existeUser = await pgdb.oneOrNone(
                 "SELECT * FROM users WHERE email = $1 or username = $2", [email, username]
             );
         
@@ -59,7 +59,7 @@ class AuthController {
             const salt = await bcrypt.genSalt(10);
             const passwordCrypt = await bcrypt.hash(password, salt);
 
-            await db.none(
+            await pgdb.none(
                 "INSERT INTO users(username, email, password) VALUES($1, $2, $3)",
                 [username, email, passwordCrypt]
             );

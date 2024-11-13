@@ -2,6 +2,7 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { router } from './routes';
+import { connectMongoDB } from './config/mongodb';
 
 dotenv.config();
 
@@ -22,9 +23,16 @@ app.use(express.json());
 // Rotas
 app.use(router);
 
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
-});
+(async () => {
+  try {
+    await connectMongoDB();
+    app.listen(port, () => {
+      console.log(`Server is running on port ${port}`);
+    });
+  } catch (error) {
+    console.error('Error connecting to the database', error);
+  }
+})();
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Hello World!');
