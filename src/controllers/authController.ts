@@ -2,6 +2,9 @@ import { Request, Response } from 'express';
 import bcrypt from "bcrypt";
 import db from '../config/database';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 class AuthController {
     public async login(req: Request, res: Response) {
@@ -20,7 +23,7 @@ class AuthController {
                 return res.status(400).json({ message: 'Senha inválida' });
             }
     
-            const token = jwt.sign({ id: user.id }, 'secret', { expiresIn: '30d' });
+            const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET as string || 'secret', { expiresIn: '30d' });
     
             // Retorna o token de autenticação e o username
             return res.status(200).json({ token, username: user.username });

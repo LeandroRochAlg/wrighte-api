@@ -1,21 +1,13 @@
 import { Request, Response } from 'express';
 import db from '../config/database';
-import jwt from 'jsonwebtoken';
 
 class TextController {
-    public async saveContent(req: Request, res: Response) {
+    public async saveContent(req: Request, res: Response): Promise<any | void> {
         const { title, content } = req.body;
-        const token = req.headers.authorization?.split(' ')[1];
-
-        if (!token) {
-            return res.status(401).json({ message: 'Token não fornecido' });
-        }
 
         try {
-            const decoded = jwt.verify(token, 'secret') as { id: number };
-
             // Insira o título, conteúdo e userID no banco de dados
-            await db.none('INSERT INTO contents(title, content, userID) VALUES($1, $2, $3)', [title, content, decoded.id]);
+            await db.none('INSERT INTO contents(title, content, userID) VALUES($1, $2, $3)', [title, content, req.body.user.id]);
 
             res.status(200).json({ message: 'Conteúdo salvo com sucesso' });
         } catch (error) {
@@ -24,17 +16,9 @@ class TextController {
         }
     }
 
-    public async getUserContents(req: Request, res: Response) {
-        const token = req.headers.authorization?.split(' ')[1];
-    
-        if (!token) {
-            return res.status(401).json({ message: 'Token não fornecido' });
-        }
-    
+    public async getUserContents(req: Request, res: Response): Promise<any | void> {
         try {
-            const decoded = jwt.verify(token, 'secret') as { id: number };
-    
-            const contents = await db.any('SELECT id, title FROM contents WHERE userID = $1', [decoded.id]);
+            const contents = await db.any('SELECT id, title FROM contents WHERE userID = $1', [req.body.user.id]);
     
             res.status(200).json(contents);
         } catch (error) {
@@ -43,19 +27,12 @@ class TextController {
         }
     }
 
-    public async getContentById(req: Request, res: Response) {
+    public async getContentById(req: Request, res: Response): Promise<any | void> {
         const { id } = req.params; // Obtém o ID a partir dos parâmetros da URL
-        const token = req.headers.authorization?.split(' ')[1];
-    
-        if (!token) {
-            return res.status(401).json({ message: 'Token não fornecido' });
-        }
     
         try {
-            const decoded = jwt.verify(token, 'secret') as { id: number };
-    
             // Busca o conteúdo específico do usuário com base no userID e contentID
-            const content = await db.oneOrNone('SELECT title, content FROM contents WHERE id = $1 AND userID = $2', [id, decoded.id]);
+            const content = await db.oneOrNone('SELECT title, content FROM contents WHERE id = $1 AND userID = $2', [id, req.body.user.id]);
     
             if (!content) {
                 return res.status(404).json({ message: 'Conteúdo não encontrado' });
