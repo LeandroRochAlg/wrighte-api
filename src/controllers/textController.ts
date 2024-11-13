@@ -1,18 +1,73 @@
 import { Request, Response } from 'express';
 import pgdb from '../config/postgresql';
+import { mongodb } from '../config/mongodb';
+import { ObjectId } from 'mongodb';
 
 class TextController {
     public async saveContent(req: Request, res: Response): Promise<any | void> {
         const { title, content } = req.body;
 
+        const contentVersionsCollection = mongodb.collection('contentVersions');
+
         try {
             // Insira o título, conteúdo e userID no banco de dados
-            await pgdb.none('INSERT INTO contents(title, content, userID) VALUES($1, $2, $3)', [title, content, req.body.user.id]);
+            const contentID = await pgdb.one('INSERT INTO contents(title, userID) VALUES($1, $2) RETURNING id', [title, req.body.user.id]);
+
+            const contentVersionID = new ObjectId().toString();
+            const contentVersion = {
+                id: contentVersionID,
+                content,
+                date: new Date(),
+            }
+
+            const contentVersions = [contentVersion];
+            const newContent = {
+                title,
+                contentID: contentID.id,
+                userID: req.body.user.id,
+                creationDate: new Date(),
+                lastVersion: contentVersionID,
+                contentVersions,
+            }
+
+            await contentVersionsCollection.insertOne(newContent);
 
             res.status(200).json({ message: 'Conteúdo salvo com sucesso' });
         } catch (error) {
             console.error('Erro ao salvar conteúdo:', error);
             res.status(500).json({ message: 'Erro ao salvar conteúdo' });
+        }
+    }
+
+    public async saveContentVersion(req: Request, res: Response): Promise<any | void> {
+        const { id } = req.body;
+        const { content } = req.body;
+
+        const contentVersionsCollection = mongodb.collection('contentVersions');
+
+        try {
+            const contentVersionID = new ObjectId().toString();
+            const contentVersion = {
+                id: contentVersionID,
+                content,
+                date: new Date(),
+            }
+
+            const contentVersions = await contentVersionsCollection.findOne({ contentID: id });
+
+            if (!contentVersions) {
+                return res.status(404).json({ message: 'Conteúdo não encontrado' });
+            }
+
+            contentVersions.contentVersions.push(contentVersion);
+            contentVersions.lastVersion = contentVersionID;
+
+            await contentVersionsCollection.updateOne({ contentID: id }, { $set: contentVersions });
+
+            res.status(200).json({ message: 'Versão do conteúdo salva com sucesso' });
+        } catch (error) {
+            console.error('Erro ao salvar versão do conteúdo:', error);
+            res.status(500).json({ message: 'Erro ao salvar versão do conteúdo' });
         }
     }
 
@@ -32,13 +87,16 @@ class TextController {
     
         try {
             // Busca o conteúdo específico do usuário com base no userID e contentID
-            const content = await pgdb.oneOrNone('SELECT title, content FROM contents WHERE id = $1 AND userID = $2', [id, req.body.user.id]);
-    
+            const content = await mongodb.collection('contentVersions').findOne({ contentID: parseInt(id), userID: req.body.user.id });
+
             if (!content) {
                 return res.status(404).json({ message: 'Conteúdo não encontrado' });
             }
-    
-            res.status(200).json(content);
+            
+            const lastVersion = content.contentVersions.find((version: any) => version.id === content.lastVersion);
+            lastVersion.title = content.title;
+
+            res.status(200).json(lastVersion);
         } catch (error) {
             console.error('Erro ao buscar conteúdo:', error);
             res.status(500).json({ message: 'Erro ao buscar conteúdo' });

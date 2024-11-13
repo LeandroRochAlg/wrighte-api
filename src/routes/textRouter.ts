@@ -7,6 +7,9 @@ export const textRouter = express.Router();
 // Save book
 textRouter.post("/book-content", authMiddleware, TextController.saveContent);
 
+// Save content version
+textRouter.post("/content-version", authMiddleware, TextController.saveContentVersion);
+
 // Get contents
 textRouter.get("/contents", authMiddleware, TextController.getUserContents);
 
