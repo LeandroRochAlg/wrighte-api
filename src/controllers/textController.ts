@@ -130,6 +130,8 @@ class TextController {
 
             const version = contentVersions.contentVersions.find((version: any) => version.id === versionID);
 
+            version.title = contentVersions.title;
+
             if (!version) {
                 return res.status(404).json({ message: 'Versão do conteúdo não encontrada' });
             }
