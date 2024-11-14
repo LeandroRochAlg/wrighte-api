@@ -1,10 +1,10 @@
 import { Request, Response } from 'express';
-import db from '../config/database';
+import pgdb from '../config/postgresql';
 
 class UserController {
     async getUsers(_req: Request, res: Response) {
         try{
-            const users = await db.manyOrNone("SELECT * FROM users");
+            const users = await pgdb.manyOrNone("SELECT * FROM users");
             res.status(200).json(users);
         } catch(error){
             console.error('Erro ao buscar usuários:', error);

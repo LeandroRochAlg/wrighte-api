@@ -5,7 +5,9 @@ import UserController from "../controllers/userController";
 export const userRouter = express.Router();
 
 // Login
-userRouter.post("/login", AuthController.login);
+userRouter.post("/login", async (req, res) => {
+    await AuthController.login(req, res);
+});
 
 // Logout
 userRouter.post("/logout", AuthController.logout);
