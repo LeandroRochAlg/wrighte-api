@@ -165,6 +165,7 @@ class TextController {
             
             const lastVersion = content.contentVersions.find((version: any) => version.id === content.lastVersion);
             lastVersion.title = content.title;
+            lastVersion.lastVersion = content.lastVersion;
             
             res.status(200).json(lastVersion);
         } catch (error) {
