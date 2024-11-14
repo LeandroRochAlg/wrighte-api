@@ -10,6 +10,15 @@ textRouter.post("/book-content", authMiddleware, TextController.saveContent);
 // Save content version
 textRouter.post("/content-version", authMiddleware, TextController.saveContentVersion);
 
+// Get content versions list
+textRouter.get("/content-versions-list/:id", authMiddleware, TextController.getContentVersionsList);
+
+// Get content versions
+textRouter.get("/content-versions/:id", authMiddleware, TextController.getContentVersions);
+
+// Get content version
+textRouter.get("/content-version/:contentID/:versionID", authMiddleware, TextController.getContentVersion);
+
 // Get contents
 textRouter.get("/contents", authMiddleware, TextController.getUserContents);
 
