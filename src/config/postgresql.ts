@@ -1,5 +1,6 @@
 import pgPromise from 'pg-promise';
 import dotenv from 'dotenv';
+import { stringify } from 'querystring';
 
 dotenv.config();
 
@@ -8,7 +9,7 @@ const pgp = pgPromise();
 const pgdb = pgp({
   host: process.env.DB_HOST || 'localhost',
   port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 5433, // Convertendo para inteiro
-  database: process.env.DB_NAME || 'postgres',
+  database: process.env.DB_NAME || 'wrightE',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
 });

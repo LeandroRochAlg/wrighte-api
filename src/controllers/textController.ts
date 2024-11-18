@@ -131,6 +131,7 @@ class TextController {
             const version = contentVersions.contentVersions.find((version: any) => version.id === versionID);
 
             version.title = contentVersions.title;
+            version.isOwner = contentVersions.userID === req.body.user.id;
 
             if (!version) {
                 return res.status(404).json({ message: 'Versão do conteúdo não encontrada' });
@@ -167,7 +168,12 @@ class TextController {
             
             const lastVersion = content.contentVersions.find((version: any) => version.id === content.lastVersion);
             lastVersion.title = content.title;
+
+            const username = await pgdb.one('SELECT username FROM users WHERE id = $1', [content.userID]);
+
+            lastVersion.username = username.username;
             lastVersion.lastVersion = content.lastVersion;
+            lastVersion.isOwner = content.userID === req.body.user.id;
             
             res.status(200).json(lastVersion);
         } catch (error) {
@@ -201,6 +207,7 @@ class TextController {
 
                 return {
                     contentID: content.id,
+                    username,
                     title: content.title,
                     versionCount,
                     commentsCount,
@@ -211,6 +218,36 @@ class TextController {
         } catch (error) {
             console.error('Erro ao buscar detalhes dos conteúdos do usuário:', error);
             res.status(500).json({ message: 'Erro ao buscar detalhes dos conteúdos' });
+        }
+    }
+
+    public async getAllContents(req: Request, res: Response): Promise<any | void> {
+        try {
+            const contents = await mongodb.collection('contentVersions').find().toArray();
+
+            const contentDetails = await Promise.all(contents.map(async (content: any) => {
+                const user = await pgdb.oneOrNone('SELECT username FROM users WHERE id = $1', [content.userID]);
+
+                const versionCount = content.contentVersions.length;
+
+                const comments = await mongodb.collection('comments').find({ contentID: content.contentID.toString() }).toArray();
+                const commentsCount = comments.length;
+
+                return {
+                    contentID: content.contentID,
+                    username: user.username,
+                    title: content.title,
+                    versionCount,
+                    commentsCount,
+                };
+            }));
+
+            contentDetails.sort((a, b) => b.commentsCount - a.commentsCount);
+
+            res.status(200).json(contentDetails);
+        } catch (error) {
+            console.error('Erro ao buscar todos os conteúdos:', error);
+            res.status(500).json({ message: 'Erro ao buscar todos os conteúdos' });
         }
     }
 }
