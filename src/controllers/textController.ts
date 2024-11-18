@@ -201,6 +201,7 @@ class TextController {
 
                 return {
                     contentID: content.id,
+                    username,
                     title: content.title,
                     versionCount,
                     commentsCount,
@@ -216,16 +217,31 @@ class TextController {
 
     public async getAllContents(req: Request, res: Response): Promise<any | void> {
         try {
-            const contents = await pgdb.any(`
-                SELECT c.id, c.title, u.username as writerName
-                FROM contents c
-                JOIN users u ON c.userID = u.id where userId != $1
-            `, [req.body.user.id]);
-    
-            res.status(200).json(contents);
+            const contents = await mongodb.collection('contentVersions').find().toArray();
+
+            const contentDetails = await Promise.all(contents.map(async (content: any) => {
+                const user = await pgdb.oneOrNone('SELECT username FROM users WHERE id = $1', [content.userID]);
+
+                const versionCount = content.contentVersions.length;
+
+                const comments = await mongodb.collection('comments').find({ contentID: content.contentID.toString() }).toArray();
+                const commentsCount = comments.length;
+
+                return {
+                    contentID: content.contentID,
+                    username: user.username,
+                    title: content.title,
+                    versionCount,
+                    commentsCount,
+                };
+            }));
+
+            contentDetails.sort((a, b) => b.commentsCount - a.commentsCount);
+
+            res.status(200).json(contentDetails);
         } catch (error) {
             console.error('Erro ao buscar todos os conteúdos:', error);
-            res.status(500).json({ message: 'Erro ao buscar conteúdos' });
+            res.status(500).json({ message: 'Erro ao buscar todos os conteúdos' });
         }
     }
 }
