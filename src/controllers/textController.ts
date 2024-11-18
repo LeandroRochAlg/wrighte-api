@@ -213,6 +213,21 @@ class TextController {
             res.status(500).json({ message: 'Erro ao buscar detalhes dos conteúdos' });
         }
     }
+
+    public async getAllContents(req: Request, res: Response): Promise<any | void> {
+        try {
+            const contents = await pgdb.any(`
+                SELECT c.id, c.title, u.username as writerName
+                FROM contents c
+                JOIN users u ON c.userID = u.id where userId != $1
+            `, [req.body.user.id]);
+    
+            res.status(200).json(contents);
+        } catch (error) {
+            console.error('Erro ao buscar todos os conteúdos:', error);
+            res.status(500).json({ message: 'Erro ao buscar conteúdos' });
+        }
+    }
 }
 
 export default new TextController();
