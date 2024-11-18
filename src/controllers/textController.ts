@@ -131,6 +131,7 @@ class TextController {
             const version = contentVersions.contentVersions.find((version: any) => version.id === versionID);
 
             version.title = contentVersions.title;
+            version.isOwner = contentVersions.userID === req.body.user.id;
 
             if (!version) {
                 return res.status(404).json({ message: 'Versão do conteúdo não encontrada' });
@@ -167,7 +168,12 @@ class TextController {
             
             const lastVersion = content.contentVersions.find((version: any) => version.id === content.lastVersion);
             lastVersion.title = content.title;
+
+            const username = await pgdb.one('SELECT username FROM users WHERE id = $1', [content.userID]);
+
+            lastVersion.username = username.username;
             lastVersion.lastVersion = content.lastVersion;
+            lastVersion.isOwner = content.userID === req.body.user.id;
             
             res.status(200).json(lastVersion);
         } catch (error) {
