@@ -175,6 +175,44 @@ class TextController {
             res.status(500).json({ message: 'Erro ao buscar conteúdo' });
         }
     }
+
+    public async getUserContentDetails(req: Request, res: Response): Promise<any | void> {
+        const { username } = req.params;
+
+        try {
+            // Get user ID from username
+            const user = await pgdb.oneOrNone('SELECT id FROM users WHERE username = $1', [username]);
+
+            if (!user) {
+                return res.status(404).json({ message: 'Usuário não encontrado' });
+            }
+
+            const userID = user.id;
+
+            // Get contents for the user
+            const contents = await pgdb.any('SELECT id, title FROM contents WHERE userID = $1', [userID]);
+
+            const contentDetails = await Promise.all(contents.map(async (content: any) => {
+                const contentVersions = await mongodb.collection('contentVersions').findOne({ contentID: content.id });
+                const versionCount = contentVersions ? contentVersions.contentVersions.length : 0;
+
+                const comments = await mongodb.collection('comments').find({ contentID: content.id.toString() }).toArray();
+                const commentsCount = comments.length;
+
+                return {
+                    contentID: content.id,
+                    title: content.title,
+                    versionCount,
+                    commentsCount,
+                };
+            }));
+
+            res.status(200).json(contentDetails);
+        } catch (error) {
+            console.error('Erro ao buscar detalhes dos conteúdos do usuário:', error);
+            res.status(500).json({ message: 'Erro ao buscar detalhes dos conteúdos' });
+        }
+    }
 }
 
 export default new TextController();

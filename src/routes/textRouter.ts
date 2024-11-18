@@ -24,3 +24,6 @@ textRouter.get("/contents", authMiddleware, TextController.getUserContents);
 
 // Get content by ID
 textRouter.get("/content/:id", authMiddleware, TextController.getContentById);
+
+// Get user overview
+textRouter.get("/user-contents/:username", authMiddleware, TextController.getUserContentDetails);
