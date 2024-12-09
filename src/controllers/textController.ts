@@ -135,12 +135,15 @@ class TextController {
 
             const version = contentVersions.contentVersions.find((version: any) => version.id === versionID);
 
-            version.title = contentVersions.title;
-            version.isOwner = contentVersions.userID === req.body.user.id;
-
             if (!version) {
                 return res.status(404).json({ message: 'Versão do conteúdo não encontrada' });
             }
+
+            version.title = contentVersions.title;
+            version.isOwner = contentVersions.userID === req.body.user.id;
+
+            const user = await pgdb.one('SELECT writingpoints FROM users WHERE id = $1', [contentVersions.userID]);
+            version.writingPoints = user.writingpoints;
             
             res.status(200).json(version);
         } catch (error) {
@@ -174,9 +177,10 @@ class TextController {
             const lastVersion = content.contentVersions.find((version: any) => version.id === content.lastVersion);
             lastVersion.title = content.title;
 
-            const username = await pgdb.one('SELECT username FROM users WHERE id = $1', [content.userID]);
+            const user = await pgdb.one('SELECT username, writingpoints FROM users WHERE id = $1', [content.userID]);
 
-            lastVersion.username = username.username;
+            lastVersion.username = user.username;
+            lastVersion.writingPoints = user.writingpoints;
             lastVersion.lastVersion = content.lastVersion;
             lastVersion.isOwner = content.userID === req.body.user.id;
             
@@ -192,7 +196,7 @@ class TextController {
 
         try {
             // Get user ID from username
-            const user = await pgdb.oneOrNone('SELECT id FROM users WHERE username = $1', [username]);
+            const user = await pgdb.oneOrNone('SELECT id, writingpoints FROM users WHERE username = $1', [username]);
 
             if (!user) {
                 return res.status(404).json({ message: 'Usuário não encontrado' });
@@ -216,6 +220,7 @@ class TextController {
                     title: content.title,
                     versionCount,
                     commentsCount,
+                    writingPoints: user.writingpoints,
                 };
             }));
 
@@ -241,7 +246,7 @@ class TextController {
                     return null;
                 }
 
-                const user = await pgdb.oneOrNone('SELECT username FROM users WHERE id = $1', [content.userID]);
+                const user = await pgdb.oneOrNone('SELECT username, writingpoints FROM users WHERE id = $1', [content.userID]);
 
                 const versionCount = content.contentVersions.length;
 
@@ -254,13 +259,14 @@ class TextController {
                     title: content.title,
                     versionCount,
                     commentsCount,
+                    writingPoints: user.writingpoints,
                 };
             }));
 
             const filteredContentDetails = contentDetails.filter(content => content !== null);
             filteredContentDetails.sort((a, b) => b.commentsCount - a.commentsCount);
 
-            res.status(200).json(contentDetails);
+            res.status(200).json(filteredContentDetails);
         } catch (error) {
             console.error('Erro ao buscar todos os conteúdos:', error);
             res.status(500).json({ message: 'Erro ao buscar todos os conteúdos' });
