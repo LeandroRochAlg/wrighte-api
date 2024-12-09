@@ -62,6 +62,23 @@ class UserController {
             res.status(500).json({ message: 'Erro interno ao atualizar senha' });
         }
     }
+    
+    async deleteUser(req: Request, res: Response) {
+        const { id } = req.body;
+
+        try {
+            const user = await pgdb.oneOrNone(`DELETE FROM users WHERE id = $1 RETURNING id, username, email`, [id]);
+
+            if (!user) {
+                res.status(404).json({ message: 'Usuário não encontrado' });
+            }
+
+            res.status(200).json({ message: 'Usuário deletado com sucesso', user });
+        } catch (error) {
+            console.error('Erro ao deletar usuário:', error);
+            res.status(500).json({ message: 'Erro interno ao deletar usuário' });
+        }
+    }
 }
 
 export default new UserController();
