@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import pgdb from '../config/postgresql';
 import { mongodb } from '../config/mongodb';
+import EditorService from '../services/editorService';
 
 class CommentController {
     public async saveComment(req: Request, res: Response): Promise<any | void> {
@@ -11,6 +12,8 @@ class CommentController {
 
         try {
             await commentsCollection.insertOne({ contentID, versionID, userID, comment, selectedText });
+
+            await EditorService.addXp(userID);
 
             res.status(200).json({ message: 'Comentário salvo com sucesso' });
         } catch (error) {

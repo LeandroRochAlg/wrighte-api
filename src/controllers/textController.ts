@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import pgdb from '../config/postgresql';
 import { mongodb } from '../config/mongodb';
 import { ObjectId } from 'mongodb';
+import TextService from '../services/textService';
 
 class TextController {
     public async saveContent(req: Request, res: Response): Promise<any | void> {
@@ -31,6 +32,8 @@ class TextController {
             }
 
             await contentVersionsCollection.insertOne(newContent);
+            
+            TextService.atributePoints(content, req.body.user.id);
 
             res.status(200).json({ message: 'Conteúdo salvo com sucesso' });
         } catch (error) {
@@ -63,6 +66,8 @@ class TextController {
             contentVersions.lastVersion = contentVersionID;
 
             await contentVersionsCollection.updateOne({ contentID: id }, { $set: contentVersions });
+            
+            TextService.atributePoints(content, req.body.user.id);
 
             res.status(200).json({ message: 'Versão do conteúdo salva com sucesso' });
         } catch (error) {
