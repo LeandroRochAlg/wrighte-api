@@ -2,16 +2,17 @@ import { Request, Response } from 'express';
 import pgdb from '../config/postgresql';
 import { mongodb } from '../config/mongodb';
 import { ObjectId } from 'mongodb';
+import TextService from '../services/textService';
 
 class TextController {
     public async saveContent(req: Request, res: Response): Promise<any | void> {
-        const { title, content } = req.body;
+        const { title, content, minEditorLevel } = req.body;
 
         const contentVersionsCollection = mongodb.collection('contentVersions');
 
         try {
             // Insira o título, conteúdo e userID no banco de dados
-            const contentID = await pgdb.one('INSERT INTO contents(title, userID) VALUES($1, $2) RETURNING id', [title, req.body.user.id]);
+            const contentID = await pgdb.one('INSERT INTO contents(title, userID, mineditorlevel) VALUES($1, $2, $3) RETURNING id', [title, req.body.user.id, minEditorLevel]);
 
             const contentVersionID = new ObjectId().toString();
             const contentVersion = {
@@ -31,6 +32,8 @@ class TextController {
             }
 
             await contentVersionsCollection.insertOne(newContent);
+            
+            TextService.atributePoints(content, req.body.user.id);
 
             res.status(200).json({ message: 'Conteúdo salvo com sucesso' });
         } catch (error) {
@@ -63,6 +66,8 @@ class TextController {
             contentVersions.lastVersion = contentVersionID;
 
             await contentVersionsCollection.updateOne({ contentID: id }, { $set: contentVersions });
+            
+            TextService.atributePoints(content, req.body.user.id);
 
             res.status(200).json({ message: 'Versão do conteúdo salva com sucesso' });
         } catch (error) {
@@ -130,12 +135,15 @@ class TextController {
 
             const version = contentVersions.contentVersions.find((version: any) => version.id === versionID);
 
-            version.title = contentVersions.title;
-            version.isOwner = contentVersions.userID === req.body.user.id;
-
             if (!version) {
                 return res.status(404).json({ message: 'Versão do conteúdo não encontrada' });
             }
+
+            version.title = contentVersions.title;
+            version.isOwner = contentVersions.userID === req.body.user.id;
+
+            const user = await pgdb.one('SELECT writingpoints FROM users WHERE id = $1', [contentVersions.userID]);
+            version.writingPoints = user.writingpoints;
             
             res.status(200).json(version);
         } catch (error) {
@@ -169,9 +177,10 @@ class TextController {
             const lastVersion = content.contentVersions.find((version: any) => version.id === content.lastVersion);
             lastVersion.title = content.title;
 
-            const username = await pgdb.one('SELECT username FROM users WHERE id = $1', [content.userID]);
+            const user = await pgdb.one('SELECT username, writingpoints FROM users WHERE id = $1', [content.userID]);
 
-            lastVersion.username = username.username;
+            lastVersion.username = user.username;
+            lastVersion.writingPoints = user.writingpoints;
             lastVersion.lastVersion = content.lastVersion;
             lastVersion.isOwner = content.userID === req.body.user.id;
             
@@ -187,7 +196,7 @@ class TextController {
 
         try {
             // Get user ID from username
-            const user = await pgdb.oneOrNone('SELECT id FROM users WHERE username = $1', [username]);
+            const user = await pgdb.oneOrNone('SELECT id, writingpoints FROM users WHERE username = $1', [username]);
 
             if (!user) {
                 return res.status(404).json({ message: 'Usuário não encontrado' });
@@ -211,6 +220,7 @@ class TextController {
                     title: content.title,
                     versionCount,
                     commentsCount,
+                    writingPoints: user.writingpoints,
                 };
             }));
 
@@ -222,11 +232,21 @@ class TextController {
     }
 
     public async getAllContents(req: Request, res: Response): Promise<any | void> {
+        const userID = req.body.user.id;
+        
         try {
+            const userEditorLevel = await pgdb.one('SELECT editorLevel FROM users WHERE id = $1', [userID]);
+
             const contents = await mongodb.collection('contentVersions').find().toArray();
 
             const contentDetails = await Promise.all(contents.map(async (content: any) => {
-                const user = await pgdb.oneOrNone('SELECT username FROM users WHERE id = $1', [content.userID]);
+                const minEditorLevel = await pgdb.one('SELECT mineditorlevel FROM contents WHERE id = $1', [content.contentID]);
+
+                if (userEditorLevel.editorlevel < minEditorLevel.mineditorlevel) {
+                    return null;
+                }
+
+                const user = await pgdb.oneOrNone('SELECT username, writingpoints FROM users WHERE id = $1', [content.userID]);
 
                 const versionCount = content.contentVersions.length;
 
@@ -239,12 +259,14 @@ class TextController {
                     title: content.title,
                     versionCount,
                     commentsCount,
+                    writingPoints: user.writingpoints,
                 };
             }));
 
-            contentDetails.sort((a, b) => b.commentsCount - a.commentsCount);
+            const filteredContentDetails = contentDetails.filter(content => content !== null);
+            filteredContentDetails.sort((a, b) => b.commentsCount - a.commentsCount);
 
-            res.status(200).json(contentDetails);
+            res.status(200).json(filteredContentDetails);
         } catch (error) {
             console.error('Erro ao buscar todos os conteúdos:', error);
             res.status(500).json({ message: 'Erro ao buscar todos os conteúdos' });

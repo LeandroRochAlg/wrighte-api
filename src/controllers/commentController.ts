@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import pgdb from '../config/postgresql';
 import { mongodb } from '../config/mongodb';
+import EditorService from '../services/editorService';
 
 class CommentController {
     public async saveComment(req: Request, res: Response): Promise<any | void> {
@@ -11,6 +12,8 @@ class CommentController {
 
         try {
             await commentsCollection.insertOne({ contentID, versionID, userID, comment, selectedText });
+
+            await EditorService.addXp(userID);
 
             res.status(200).json({ message: 'Comentário salvo com sucesso' });
         } catch (error) {
@@ -30,24 +33,25 @@ class CommentController {
     
             // Obter os IDs de usuários dos comentários
             const userIds = comments.map(comment => Number(comment.userID)); // Converter para número
-            const usersQuery = `SELECT id, username FROM users WHERE id = ANY($1::int[])`;
+            const usersQuery = `SELECT id, username, editorlevel FROM users WHERE id = ANY($1::int[])`;
     
-            // Buscar nomes de usuários no PostgreSQL
+            // Buscar nomes de usuários e níveis de editor no PostgreSQL
             const users = await pgdb.query(usersQuery, [userIds]);
     
-            // Mapear IDs para nomes de usuário
-            const usersMap = (users || []).reduce((acc: { [key: number]: string }, user: { id: number; username: string }) => {
-                acc[user.id] = user.username;
+            // Mapear IDs para nomes de usuário e níveis de editor
+            const usersMap = (users || []).reduce((acc: { [key: number]: { username: string, editorlevel: number } }, user: { id: number; username: string, editorlevel: number }) => {
+                acc[user.id] = { username: user.username, editorlevel: user.editorlevel };
                 return acc;
             }, {});
     
-            // Combinar os comentários com os nomes de usuário e retornar os campos desejados
+            // Combinar os comentários com os nomes de usuário, níveis de editor e retornar os campos desejados
             const commentsWithUserNames = comments.map(comment => ({
                 contentID: comment.contentID,
                 versionID: comment.versionID,
                 comment: comment.comment,
                 selectedText: comment.selectedText,
-                userName: usersMap[Number(comment.userID)] || 'Usuário Desconhecido', // Garantir consistência
+                userName: usersMap[Number(comment.userID)]?.username || 'Usuário Desconhecido', // Garantir consistência
+                editorLevel: usersMap[Number(comment.userID)]?.editorlevel || 0, // Garantir consistência
             }));
     
             res.status(200).json(commentsWithUserNames);
@@ -55,7 +59,7 @@ class CommentController {
             console.error('Erro ao buscar comentários:', error);
             res.status(500).json({ message: 'Erro ao buscar comentários' });
         }
-    }    
+    }
 }
 
 export default new CommentController();
