@@ -18,7 +18,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Middleware para processar JSON
-app.use(express.json());
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 // Rotas
 app.use(router);
