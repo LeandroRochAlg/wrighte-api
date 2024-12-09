@@ -242,7 +242,7 @@ class TextController {
             const contentDetails = await Promise.all(contents.map(async (content: any) => {
                 const minEditorLevel = await pgdb.one('SELECT mineditorlevel FROM contents WHERE id = $1', [content.contentID]);
 
-                if (userEditorLevel.editorLevel < minEditorLevel.mineditorlevel) {
+                if (userEditorLevel.editorlevel < minEditorLevel.mineditorlevel) {
                     return null;
                 }
 
