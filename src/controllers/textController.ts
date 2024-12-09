@@ -6,13 +6,13 @@ import TextService from '../services/textService';
 
 class TextController {
     public async saveContent(req: Request, res: Response): Promise<any | void> {
-        const { title, content } = req.body;
+        const { title, content, minEditorLevel } = req.body;
 
         const contentVersionsCollection = mongodb.collection('contentVersions');
 
         try {
             // Insira o título, conteúdo e userID no banco de dados
-            const contentID = await pgdb.one('INSERT INTO contents(title, userID) VALUES($1, $2) RETURNING id', [title, req.body.user.id]);
+            const contentID = await pgdb.one('INSERT INTO contents(title, userID, mineditorlevel) VALUES($1, $2, $3) RETURNING id', [title, req.body.user.id, minEditorLevel]);
 
             const contentVersionID = new ObjectId().toString();
             const contentVersion = {
@@ -227,10 +227,20 @@ class TextController {
     }
 
     public async getAllContents(req: Request, res: Response): Promise<any | void> {
+        const userID = req.body.user.id;
+        
         try {
+            const userEditorLevel = await pgdb.one('SELECT editorLevel FROM users WHERE id = $1', [userID]);
+
             const contents = await mongodb.collection('contentVersions').find().toArray();
 
             const contentDetails = await Promise.all(contents.map(async (content: any) => {
+                const minEditorLevel = await pgdb.one('SELECT mineditorlevel FROM contents WHERE id = $1', [content.contentID]);
+
+                if (userEditorLevel.editorLevel < minEditorLevel.mineditorlevel) {
+                    return null;
+                }
+
                 const user = await pgdb.oneOrNone('SELECT username FROM users WHERE id = $1', [content.userID]);
 
                 const versionCount = content.contentVersions.length;
@@ -247,7 +257,8 @@ class TextController {
                 };
             }));
 
-            contentDetails.sort((a, b) => b.commentsCount - a.commentsCount);
+            const filteredContentDetails = contentDetails.filter(content => content !== null);
+            filteredContentDetails.sort((a, b) => b.commentsCount - a.commentsCount);
 
             res.status(200).json(contentDetails);
         } catch (error) {
