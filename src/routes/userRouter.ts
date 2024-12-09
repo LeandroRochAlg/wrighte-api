@@ -2,7 +2,6 @@ import express from "express";
 import AuthController from "../controllers/authController";
 import UserController from "../controllers/userController";
 import { authMiddleware } from "../middlewares/authMiddleware";
-import userController from "../controllers/userController";
 
 export const userRouter = express.Router();
 
@@ -21,14 +20,7 @@ userRouter.post("/register", AuthController.register);
 userRouter.get("/users", UserController.getUsers);
 
 // Update user profile
-userRouter.put("/update-profile", async (req, res) => {
-    await UserController.updateUser(req, res);
-});
+userRouter.put("/update-profile", authMiddleware, UserController.updateUser);
 
 // Update user password
-userRouter.put("/update-password", async (req, res) => {
-    await UserController.updatePassword(req, res);
-});
-
-// Delete user
-userRouter.delete("/delete-user", userController.deleteUser);
+userRouter.put("/update-password", authMiddleware, UserController.updatePassword);
